@@ -1,6 +1,7 @@
 import os
 import openai
 from dotenv import load_dotenv
+
 load_dotenv()
 
 openai.api_key = os.getenv("HUGGING_FACE_TOKEN")
@@ -27,7 +28,7 @@ def gpt4_interface(message: str):
                 # print(content, end="", flush=True)
                 answer.append(content)
 
-    return ''.join(answer)
+    return "".join(answer)
 
 
 if __name__ == "__main__":
