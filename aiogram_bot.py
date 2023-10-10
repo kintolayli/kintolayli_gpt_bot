@@ -29,11 +29,11 @@ load_dotenv()
 DEBUG = True
 
 DB_NAME = os.getenv("DB_NAME")
-MESSAGES_IN_BUFFER = os.getenv("MESSAGES_IN_BUFFER")
+MESSAGES_IN_BUFFER = int(os.getenv("MESSAGES_IN_BUFFER"))
 TIME_TO_PRINT = os.getenv("TIME_TO_PRINT")
-TIME_INTERVAL_MIN = os.getenv("TIME_INTERVAL_MIN")
-MAX_SUMMARIZE_MESSAGES = os.getenv("MAX_SUMMARIZE_MESSAGES")
-ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
+TIME_INTERVAL_MIN = int(os.getenv("TIME_INTERVAL_MIN"))
+MAX_SUMMARIZE_MESSAGES = int(os.getenv("MAX_SUMMARIZE_MESSAGES"))
+ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID").split()
 TOKEN = getenv("BOT_TOKEN")
 bot = Bot(os.getenv("TG_API_TOKEN"), parse_mode=ParseMode.HTML)
 
@@ -56,7 +56,7 @@ def time_to_summarization():
 
 
 def validation(message):
-    return message.chat.id in chat_id_allowed and message.from_user.id == ADMIN_CHAT_ID
+    return message.chat.id in chat_id_allowed and message.from_user.id in ADMIN_CHAT_ID
 
 
 async def summarize(chat_id, messages):
@@ -90,8 +90,11 @@ async def command_summarize_last_n_messages(message: types.Message):
     if validation:
         con = sl.connect(DB_NAME)
         add_all_messages_in_buffer_to_db()
-        count = message.text.split()[1]
-        print(f"{count=}")
+        count = message.text[len('summarize_last_n_messages') + 2::].strip()
+
+        if DEBUG:
+            print(f"{count=}")
+
         chat_id = message.chat.id
         if int(count) < MAX_SUMMARIZE_MESSAGES:
             last_n_messages = select_last_n_messages_from_db(con, count, chat_id)
@@ -102,19 +105,25 @@ async def command_summarize_last_n_messages(message: types.Message):
                 f"Уменьшите число и повторите попытку."
             )
         con.close()
+    else:
+        await message.answer(
+            f"Access denied"
+        )
+
 
 
 @dp.message(Command("answer_to_question"))
 async def answer_to_question(message: types.Message):
     if validation:
-        message_text = message.text.split().pop(0)
+        message_text = message.text[len('answer_to_question') + 2::].strip()
 
         if DEBUG:
             print(f"{message_text=}")
+
         answer = gpt4_interface(message_text)
 
         await bot.send_message(
-            message.chat.id, f"Вопрос:\n{message.text}\n\nОтвет:\n{answer}"
+            message.chat.id, f"Вопрос:\n{message_text}\n\nОтвет:\n{answer}"
         )
 
 
@@ -225,14 +234,19 @@ def add_all_messages_in_buffer_to_db():
 
 
 def save_message(message: types.Message) -> None:
+    # добавляем смещение по часовому поясу GMT +3
+    date = message.date + datetime.timedelta(hours=3)
+
     tuple_msg = (
         message.message_id,
         message.from_user.id,
         message.chat.id,
         message.from_user.first_name,
-        message.date.isoformat(sep=" ", timespec="seconds"),
+        date.isoformat(sep=" ", timespec="seconds"),
         message.text,
     )
+    if DEBUG:
+        print(tuple_msg)
 
     participants_messages.append(tuple_msg)
     if len(participants_messages) >= MESSAGES_IN_BUFFER:
@@ -247,7 +261,8 @@ async def echo_handler(message: types.Message) -> None:
     By default, message handler will handle all message types (like a text, photo, sticker etc.)
     """
     try:
-        save_message(message)
+        if message.text is not None:
+            save_message(message)
 
         if DEBUG:
             print(participants_messages)
@@ -260,9 +275,10 @@ async def echo_handler(message: types.Message) -> None:
             print(f"{message.from_user.first_name=}")
             print(f"{message.date=}")
             print(f"{message.text=}")
-    except TypeError:
+    except TypeError as e:
         # But not all the types is supported to be copied so need to handle it
-        await message.answer("Nice try!")
+        print(e)
+        # await message.answer(f"{e}")
 
 
 async def main():
