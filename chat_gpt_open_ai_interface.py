@@ -10,9 +10,9 @@ openai.api_base = "https://api.openai.com/v1/chat/"
 
 def chat_gpt_interface(message: str):
     chat_completion = openai.Completion.create(
-    model="gpt-3.5-turbo",
-    messages=[{"role": "user", "content": message}],
-    stream=True,
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": message}],
+        stream=True,
     )
 
     answer = []

@@ -32,9 +32,7 @@ def get_or_create_db(connection):
 
 def add_data_to_db(con, data: list):
     table_name = "messages"
-    fields_name = (
-        "(tg_message_id, from_user_id, chat_id, from_user_first_name, date, text)"
-    )
+    fields_name = "(tg_message_id, from_user_id, chat_id, from_user_first_name, date, text)"
     len_fields_name = 6
 
     values = "(" + ", ".join(["?" for x in range(len_fields_name)]) + ")"
@@ -57,11 +55,10 @@ def send_query_to_db(con, query):
         return result
 
 
-def select_all_messages_from_db_today(con, chat_id, table_name="messages"):
+def select_all_messages_from_db_for_specific_date(con, chat_id, date, table_name="messages"):
     query = f"""
         SELECT text FROM {table_name}
-        WHERE date >= DATE('now', 'start of day') AND
-        date < DATE('now', 'start of day', '+1 day')
+        WHERE date = {date}
         AND chat_id = {chat_id};
         """
     return send_query_to_db(con, query)
@@ -88,7 +85,9 @@ def select_last_n_messages_from_db(con, count, chat_id, table_name="messages"):
 
 
 if __name__ == "__main__":
-    date = datetime.datetime(year=2023, month=10, day=7, hour=10, minute=0, second=0)
+    date = datetime.datetime(
+        year=2023, month=10, day=7, hour=10, minute=0, second=0
+    )
     date = date.isoformat(sep=" ", timespec="seconds")
 
     data = [
@@ -96,7 +95,14 @@ if __name__ == "__main__":
         (1195, 99076897, -4044068024, "Ilya", date, "b: сообщения"),
         (1196, 99076897, -4044068024, "Ilya", date, "b: c префиксом b"),
         (1197, 99076897, -4044068024, "Ilya", date, "b: из будущего"),
-        (1198, 99076897, -4044068024, "Ilya", date, "b: и их не надо выбирать"),
+        (
+            1198,
+            99076897,
+            -4044068024,
+            "Ilya",
+            date,
+            "b: и их не надо выбирать",
+        ),
         (1199, 99076897, -4044068024, "Ilya", date, "b: конец"),
     ]
 
