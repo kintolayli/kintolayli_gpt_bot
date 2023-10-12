@@ -21,13 +21,13 @@ from working_with_db import (
     select_last_n_messages_from_db,
 )
 
-from gpt4_interface import gpt4_interface
+# from gpt4_interface import gpt4_interface
+from chat_gpt_open_ai_interface import chat_gpt_interface
 from literals import WELCOME_MESSAGE, START_SUMMARIZE_MESSAGE
 
 load_dotenv()
 
-DEBUG = True
-
+DEBUG = bool(int(os.getenv("DEBUG")))
 DB_NAME = os.getenv("DB_NAME")
 MESSAGES_IN_BUFFER = int(os.getenv("MESSAGES_IN_BUFFER"))
 TIME_TO_PRINT = os.getenv("TIME_TO_PRINT")
@@ -42,6 +42,15 @@ dp = Dispatcher()
 participants_messages = []
 chat_id_allowed = set()
 queue = set()
+
+def llm_interface(message: str) -> str:
+    """
+    in this function, the interface for interacting with llm models is selected
+    (at the moment there is an official one from open ai and an unofficial one from gpt4
+    """
+
+    return chat_gpt_interface(message)
+    # return gpt4_interface(message)
 
 
 def time_to_summarization():
@@ -62,17 +71,21 @@ def validation(message):
 async def summarize(chat_id, messages):
     if len(messages) > 0:
         participants_messages_str = " ".join(map(str, messages))
-        summarization_result = gpt4_interface(
+        summarization_result = llm_interface(
             f"{START_SUMMARIZE_MESSAGE} {participants_messages_str}"
         )
 
-        await bot.send_message(
-            chat_id,
-            f"Данные для суммаризации:"
-            f"\n{messages}\n\nОтвет:\n{summarization_result}",
-        )
+        msg_today_header = f"#kintolayliGPTsummarize\nВыжимка беседы за **{datetime.datetime.now().strftime('%d.%m.%Y')}**\n\n"
+
+        if DEBUG:
+            test_msg = f"Данные для суммаризации:\n{messages}\n\nОтвет:\n{summarization_result}"
+            answer_msg = f"{msg_today_header}{test_msg}"
+        else:
+            answer_msg = f"{msg_today_header}{summarization_result}"
+
+        await bot.send_message(chat_id, answer_msg)
     else:
-        bot.send_message(
+        await bot.send_message(
             chat_id,
             f"Недостаточно данных для суммаризации - количество сообщений должно быть больше 1. Сейчас: {len(messages)=}",
         )
@@ -256,9 +269,11 @@ def save_message(message: types.Message) -> None:
 @dp.message()
 async def echo_handler(message: types.Message) -> None:
     """
-    Handler will forward receive a message back to the sender
-
-    By default, message handler will handle all message types (like a text, photo, sticker etc.)
+    Handler that forwards a received message back to the sender.
+    Args:
+        message (types.Message): The message received.
+    Returns:
+        None
     """
     try:
         if message.text is not None:
@@ -288,6 +303,10 @@ async def main():
 if __name__ == "__main__":
     con = sl.connect(DB_NAME)
     get_or_create_db(con)
+
+    chat_id_allowed = set(os.getenv("CHAT_ID_ALLOWED").split())
+
+    print(chat_id_allowed)
 
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
     asyncio.run(main())
