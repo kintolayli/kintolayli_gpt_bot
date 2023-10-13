@@ -50,15 +50,18 @@ def send_query_to_db(con, query):
         result = []
         data = con.execute(query)
         for row in data:
+            # result.append(row[0])
             result.append(row[0])
 
         return result
 
 
-def select_all_messages_from_db_for_specific_date(con, chat_id, date, table_name="messages"):
+def select_all_messages_from_db_for_specific_date(
+    con, chat_id, date: str, table_name="messages"
+):
     query = f"""
         SELECT text FROM {table_name}
-        WHERE date = {date}
+        WHERE strftime('%Y-%m-%d', date) = '{date}'
         AND chat_id = {chat_id};
         """
     return send_query_to_db(con, query)
