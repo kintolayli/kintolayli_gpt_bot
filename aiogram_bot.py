@@ -213,7 +213,6 @@ async def command_start_summarize_by_time_every_day(message: Message) -> None:
     This handler receives messages with `/start` command
 
     """
-    today_date = datetime.datetime.now().strftime("%Y-%m-%d")
 
     if message.chat.id not in queue:
         await message.answer(
@@ -222,6 +221,11 @@ async def command_start_summarize_by_time_every_day(message: Message) -> None:
         queue.add(message.chat.id)
 
         while message.chat.id in queue:
+            # добавляем смещение по часовому поясу GMT +3
+            today_date = datetime.datetime.now()
+            today_date_utc_3 = today_date + datetime.timedelta(hours=3)
+            today_date_utc_3_formatted = today_date_utc_3.strftime("%Y-%m-%d")
+
             if DEBUG:
                 print(f"{queue=}")
 
@@ -236,9 +240,12 @@ async def command_start_summarize_by_time_every_day(message: Message) -> None:
                         chat_id_outer = chat_id
                         print(f"{chat_id=}")
                         messages = await summarize_all_messages_from_date(
-                            chat_id_outer, today_date
+                            chat_id_outer, today_date_utc_3_formatted
                         )
-                        await summarize(chat_id, messages, today_date)
+                        await summarize(chat_id,
+                                        messages,
+                                        today_date_utc_3_formatted)
+
                         await asyncio.sleep(1)
                 except exceptions.TelegramBadRequest:
                     await bot.send_message(
@@ -299,17 +306,22 @@ async def remove_current_chat_from_allowed(message: types.Message) -> None:
         await message.answer(f"Ошибка {error}")
 
 
-@dp.message(Command("show_list"))
+@dp.message(Command("show_messages_from_date"))
 @auth_user
-async def cmd_show_list(message: types.Message) -> None:
-    date = datetime.datetime.now().strftime("%Y-%m-%d")
+async def cmd_show_messages_from_date(message: types.Message, date=None) -> None:
+    if date is None:
+        date = datetime.datetime.now().strftime("%Y-%m-%d")
+
     print(date)
+
     con = sl.connect(DB_NAME)
-    data = select_all_messages_from_db_for_specific_date(
+
+    messages = select_all_messages_from_db_for_specific_date(
         con, message.chat.id, date
     )
-    print(data)
-    await message.answer(f"{data=}")
+    print(messages)
+
+    await message.answer(f"{messages=}")
     con.close()
 
 
