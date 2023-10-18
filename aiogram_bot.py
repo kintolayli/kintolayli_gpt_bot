@@ -134,7 +134,7 @@ async def summarize(chat_id: int, messages: list, date: str) -> None:
         )
 
 
-async def summarize_all_messages_from_date(chat_id: int, date: str) -> list:
+async def select_all_messages_from_date(chat_id: int, date: str) -> list:
     con = sl.connect(DB_NAME)
     messages_today = select_all_messages_from_db_for_specific_date(
         con, chat_id, date
@@ -148,13 +148,13 @@ async def summarize_all_messages_from_date(chat_id: int, date: str) -> list:
 async def command_summarize_messages_from_date(message: types.Message) -> None:
     add_all_messages_in_buffer_to_db()
     date = message.text[
-        len("summarize_messages_from_specific_date") + 2 : :
-    ].strip()
+           len("summarize_messages_from_specific_date") + 2::
+           ].strip()
 
     if DEBUG:
         print(f"{date}")
 
-    messages_from_date = await summarize_all_messages_from_date(
+    messages_from_date = await select_all_messages_from_date(
         message.chat.id, date
     )
     await summarize(message.chat.id, messages_from_date, date)
@@ -166,7 +166,7 @@ async def command_summarize_last_n_messages(message: types.Message) -> None:
     date = datetime.datetime.now().strftime("%Y-%m-%d")
     con = sl.connect(DB_NAME)
     add_all_messages_in_buffer_to_db()
-    count = message.text[len("summarize_last_n_messages") + 2 : :].strip()
+    count = message.text[len("summarize_last_n_messages") + 2::].strip()
 
     if DEBUG:
         print(f"{count=}")
@@ -187,7 +187,7 @@ async def command_summarize_last_n_messages(message: types.Message) -> None:
 @dp.message(Command("question"))
 @auth_user
 async def command_question(message: types.Message) -> None:
-    message_text = message.text[len("question") + 2 : :].strip()
+    message_text = message.text[len("question") + 2::].strip()
 
     if DEBUG:
         print(f"{message_text=}")
@@ -213,8 +213,8 @@ async def command_start_summarize_by_time_every_day(message: Message) -> None:
     This handler receives messages with `/start` command
 
     """
-
     if message.chat.id not in queue:
+
         await message.answer(
             f"Hello, {hbold(message.from_user.full_name)}\nТрекер для чата {message.chat.id} запущен"
         )
@@ -223,33 +223,32 @@ async def command_start_summarize_by_time_every_day(message: Message) -> None:
         while message.chat.id in queue:
             # добавляем смещение по часовому поясу GMT +3
             today_date = datetime.datetime.now()
-            today_date_utc_3 = today_date + datetime.timedelta(hours=3)
-            today_date_utc_3_formatted = today_date_utc_3.strftime("%Y-%m-%d")
+            today_date_formatted = today_date.strftime("%Y-%m-%d")
 
             if DEBUG:
                 print(f"{queue=}")
 
             await asyncio.sleep(1)
 
-            chat_id_outer = message.chat.id
-
             if time_to_summarization():
                 try:
                     add_all_messages_in_buffer_to_db()
-                    for chat_id in queue:
-                        chat_id_outer = chat_id
-                        print(f"{chat_id=}")
-                        messages = await summarize_all_messages_from_date(
-                            chat_id_outer, today_date_utc_3_formatted
-                        )
-                        await summarize(chat_id,
-                                        messages,
-                                        today_date_utc_3_formatted)
 
-                        await asyncio.sleep(1)
+                    if DEBUG:
+                        print(f"{message.chat.id=}")
+
+                    messages = await select_all_messages_from_date(
+                        message.chat.id,
+                        today_date_formatted
+                    )
+                    await summarize(message.chat.id,
+                                    messages,
+                                    today_date_formatted)
+
+                    await asyncio.sleep(1)
                 except exceptions.TelegramBadRequest:
                     await bot.send_message(
-                        chat_id_outer, f"{exceptions.TelegramBadRequest=}"
+                        message.chat.id, f"{exceptions.TelegramBadRequest=}"
                     )
                     print(
                         "Telegram server says - Bad Request: message is too long"
@@ -308,7 +307,8 @@ async def remove_current_chat_from_allowed(message: types.Message) -> None:
 
 @dp.message(Command("show_messages_from_date"))
 @auth_user
-async def cmd_show_messages_from_date(message: types.Message, date=None) -> None:
+async def cmd_show_messages_from_date(message: types.Message,
+                                      date=None) -> None:
     if date is None:
         date = datetime.datetime.now().strftime("%Y-%m-%d")
 
