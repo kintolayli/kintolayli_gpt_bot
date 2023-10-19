@@ -333,15 +333,13 @@ def add_all_messages_in_buffer_to_db() -> None:
 
 
 def save_message(message: types.Message) -> None:
-    # добавляем смещение по часовому поясу GMT +3
-    date = message.date + datetime.timedelta(hours=3)
 
     tuple_msg = (
         message.message_id,
         message.from_user.id,
         message.chat.id,
         message.from_user.first_name,
-        date.isoformat(timespec="seconds"),
+        message.date.isoformat(timespec="seconds"),
         message.text,
     )
     if DEBUG:
