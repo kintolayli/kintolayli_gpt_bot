@@ -1,4 +1,5 @@
 import os
+
 import openai
 from dotenv import load_dotenv
 
@@ -24,7 +25,7 @@ def chat_gpt_interface(message: str):
         # stream
         for token in chat_completion:
             content = token["choices"][0]["delta"].get("content")
-            if content != None:
+            if content is not None:
                 # print(content, end="", flush=True)
                 answer.append(content)
 

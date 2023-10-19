@@ -14,7 +14,6 @@ from aiogram.types import Message
 from aiogram.utils.markdown import hbold
 from dotenv import load_dotenv
 
-# from gpt4_interface import gpt4_interface
 from chat_gpt_open_ai_interface import chat_gpt_interface
 from literals import START_SUMMARIZE_MESSAGE
 from working_with_db import (
@@ -52,6 +51,10 @@ dp = Dispatcher()
 
 participants_messages = []
 queue = set()
+
+
+def add_3_hours_to_time(time: datetime.datetime) -> datetime.datetime:
+    return time + datetime.timedelta(hours=3)
 
 
 async def validation_chat(message: types.Message):
@@ -96,12 +99,11 @@ def llm_interface(message: str) -> str:
     """
 
     return chat_gpt_interface(message)
-    # return gpt4_interface(message)
 
 
 def time_to_summarization() -> bool:
-    now = datetime.datetime.now()
-    current_time = now.strftime("%H:%M:%S")
+    today_date_gmt_3 = add_3_hours_to_time(datetime.datetime.now())
+    current_time = today_date_gmt_3.strftime("%H:%M:%S")
 
     if DEBUG:
         print(f"{current_time=}")
@@ -214,7 +216,6 @@ async def command_start_summarize_by_time_every_day(message: Message) -> None:
 
     """
     if message.chat.id not in queue:
-
         await message.answer(
             f"Hello, {hbold(message.from_user.full_name)}\nТрекер для чата {message.chat.id} запущен"
         )
@@ -238,12 +239,11 @@ async def command_start_summarize_by_time_every_day(message: Message) -> None:
                         print(f"{message.chat.id=}")
 
                     messages = await select_all_messages_from_date(
-                        message.chat.id,
-                        today_date_formatted
+                        message.chat.id, today_date_formatted
                     )
-                    await summarize(message.chat.id,
-                                    messages,
-                                    today_date_formatted)
+                    await summarize(
+                        message.chat.id, messages, today_date_formatted
+                    )
 
                     await asyncio.sleep(1)
                 except exceptions.TelegramBadRequest:
@@ -307,8 +307,9 @@ async def remove_current_chat_from_allowed(message: types.Message) -> None:
 
 @dp.message(Command("show_messages_from_date"))
 @auth_user
-async def cmd_show_messages_from_date(message: types.Message,
-                                      date=None) -> None:
+async def cmd_show_messages_from_date(
+        message: types.Message, date=None
+) -> None:
     if date is None:
         date = datetime.datetime.now().strftime("%Y-%m-%d")
 
@@ -333,13 +334,15 @@ def add_all_messages_in_buffer_to_db() -> None:
 
 
 def save_message(message: types.Message) -> None:
+    # добавляем смещение по часовому поясу GMT +3
+    update_date = add_3_hours_to_time(message.date)
 
     tuple_msg = (
         message.message_id,
         message.from_user.id,
         message.chat.id,
         message.from_user.first_name,
-        message.date.isoformat(timespec="seconds"),
+        update_date.isoformat(timespec="seconds"),
         message.text,
     )
     if DEBUG:
