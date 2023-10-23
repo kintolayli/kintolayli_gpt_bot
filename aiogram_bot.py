@@ -130,10 +130,11 @@ async def summarize(chat_id: int, messages: list, date: str) -> None:
 
         await bot.send_message(chat_id, answer_msg)
     else:
-        await bot.send_message(
-            chat_id,
-            f"Недостаточно данных для суммаризации - количество сообщений должно быть больше 1. Сейчас: {len(messages)}",
-        )
+        if DEBUG:
+            await bot.send_message(
+                chat_id,
+                f"Недостаточно данных для суммаризации - количество сообщений должно быть больше 1. Сейчас: {len(messages)}",
+            )
 
 
 async def select_all_messages_from_date(chat_id: int, date: str) -> list:
